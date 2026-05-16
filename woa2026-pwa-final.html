@@ -454,10 +454,17 @@ async function tryLiveUpdate(manual=false){
   if(btnEl) btnEl.disabled = true;
   try {
     // Direct call to Wacken's official JSON API — no proxy needed
-    const res = await fetch('https://www.wacken.com/fileadmin/Json/bandlist-concert.json', {
-      signal: AbortSignal.timeout(8000),
-      headers: {'Accept':'application/json'}
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    let res;
+    try {
+      res = await fetch('https://www.wacken.com/fileadmin/Json/bandlist-concert.json', {
+        signal: controller.signal,
+        headers: {'Accept':'application/json'}
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const names = data.map(b => b.artist?.title || b.title).filter(Boolean);
@@ -480,15 +487,17 @@ async function tryLiveUpdate(manual=false){
   } catch(e){
     const lastTs = localStorage.getItem('woa26_live_ts');
     const lastCount = localStorage.getItem('woa26_live_count');
+    const errMsg = e?.message ? ' ['+e.message+']' : '';
     if(lastTs){
       const mins = Math.round((Date.now()-parseInt(lastTs))/60000);
       const h = Math.floor(mins/60), m = mins%60;
       const ago = h>0 ? h+'h '+m+'min' : m+'min';
-      statusEl.textContent = '🟡 Keine Verbindung · Zuletzt: vor '+ago+' ('+lastCount+' Bands)';
+      statusEl.textContent = '🟡 Keine Verbindung · Zuletzt: vor '+ago+' ('+lastCount+' Bands)'+errMsg;
     } else {
-      statusEl.textContent = '⚪ Keine Verbindung · Eingebettete Daten ('+BANDS.length+' Bands)';
+      statusEl.textContent = '⚪ Keine Verbindung · Eingebettete Daten ('+BANDS.length+' Bands)'+errMsg;
     }
     statusEl.style.color = '#9a9a9a';
+    console.warn('Live update failed:', e);
   }
   if(btnEl){ btnEl.disabled = false; }
 }
