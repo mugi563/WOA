@@ -453,31 +453,25 @@ async function tryLiveUpdate(manual=false){
   statusEl.style.color = '#f49600';
   if(btnEl) btnEl.disabled = true;
   try {
-    const target = encodeURIComponent('https://www.wacken.com/de/line-up/bands/');
-    const proxies = [
-      'https://api.allorigins.win/raw?url=' + target,
-      'https://corsproxy.io/?' + target,
-      'https://api.codetabs.com/v1/proxy?quest=https://www.wacken.com/de/line-up/bands/',
-    ];
-    let text = null;
-    let lastErr = null;
-    for(const proxyUrl of proxies){
-      try {
-        const r = await fetch(proxyUrl, {signal: AbortSignal.timeout(7000)});
-        if(r.ok){ text = await r.text(); break; }
-      } catch(e){ lastErr = e; }
-    }
-    if(!text) throw lastErr || new Error('Alle Proxies fehlgeschlagen');
-    const names = [...text.matchAll(/class="card-title text-center"[^>]*>([^<]+)<\/h5>/g)].map(m=>m[1].trim()).filter(Boolean);
+    // Direct call to Wacken's official JSON API — no proxy needed
+    const res = await fetch('https://www.wacken.com/fileadmin/Json/bandlist-concert.json', {
+      signal: AbortSignal.timeout(8000),
+      headers: {'Accept':'application/json'}
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const names = data.map(b => b.artist?.title || b.title).filter(Boolean);
+    const roActive = data.some(b => b.festival?.runningOrderActive);
     if(names.length > 10){
       const prevCount = parseInt(localStorage.getItem('woa26_live_count')||'0');
       const diff = names.length - prevCount;
       const ts = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
       let msg = '🟢 Live · ' + names.length + ' Bands · Stand: ' + ts;
-      if(manual && diff > 0)  msg += ' · +'+diff+' neu!';
+      if(manual && diff > 0)  msg += ' · ⚡ +'+diff+' neue Bands!';
       if(manual && diff === 0 && prevCount > 0) msg += ' · Keine Änderungen';
+      if(roActive) msg += ' · Running Order aktiv!';
       statusEl.textContent = msg;
-      statusEl.style.color = '#50c878';
+      statusEl.style.color = roActive ? '#f49600' : '#50c878';
       localStorage.setItem('woa26_live_ts', Date.now());
       localStorage.setItem('woa26_live_count', names.length);
     } else {
