@@ -453,10 +453,21 @@ async function tryLiveUpdate(manual=false){
   statusEl.style.color = '#f49600';
   if(btnEl) btnEl.disabled = true;
   try {
-    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://www.wacken.com/de/line-up/bands/');
-    const res = await fetch(proxyUrl, {signal: AbortSignal.timeout(8000)});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const text = await res.text();
+    const target = encodeURIComponent('https://www.wacken.com/de/line-up/bands/');
+    const proxies = [
+      'https://api.allorigins.win/raw?url=' + target,
+      'https://corsproxy.io/?' + target,
+      'https://api.codetabs.com/v1/proxy?quest=https://www.wacken.com/de/line-up/bands/',
+    ];
+    let text = null;
+    let lastErr = null;
+    for(const proxyUrl of proxies){
+      try {
+        const r = await fetch(proxyUrl, {signal: AbortSignal.timeout(7000)});
+        if(r.ok){ text = await r.text(); break; }
+      } catch(e){ lastErr = e; }
+    }
+    if(!text) throw lastErr || new Error('Alle Proxies fehlgeschlagen');
     const names = [...text.matchAll(/class="card-title text-center"[^>]*>([^<]+)<\/h5>/g)].map(m=>m[1].trim()).filter(Boolean);
     if(names.length > 10){
       const prevCount = parseInt(localStorage.getItem('woa26_live_count')||'0');
