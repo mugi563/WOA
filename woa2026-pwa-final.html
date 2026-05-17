@@ -513,53 +513,61 @@ buildAlpha(); renderLineup();
 
 <!-- SW moved to inline blob -->
 <script>
-
-// Live update: fetch wacken.com band list on startup via CORS proxy
+// ── LIVE UPDATE ──────────────────────────────────────────────────────────────
 async function tryLiveUpdate(manual=false){
   const statusEl = document.getElementById('live-status');
-  const btnEl = document.getElementById('btn-refresh');
+  const btnEl    = document.getElementById('btn-refresh');
+  if(!statusEl) return;
   statusEl.textContent = '⏳ Verbinde mit wacken.com…';
   statusEl.style.color = '#f49600';
   if(btnEl) btnEl.disabled = true;
-  try {
-    // Direct call to Wacken's official JSON API — no proxy needed
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    let res;
-    try {
-      res = await fetch('https://www.wacken.com/fileadmin/Json/bandlist-concert.json', {
+
+  const TARGET = 'https://www.wacken.com/fileadmin/Json/bandlist-concert.json';
+  const PROXIES = [
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+    u => u   // direct as last resort
+  ];
+
+  let data = null;
+  for(const proxy of PROXIES){
+    try{
+      const controller = new AbortController();
+      const timer = setTimeout(()=>controller.abort(), 8000);
+      const res = await fetch(proxy(TARGET), {
         signal: controller.signal,
         headers: {'Accept':'application/json'}
       });
-    } finally {
       clearTimeout(timer);
-    }
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    const names = data.map(b => b.artist?.title || b.title).filter(Boolean);
-    const roActive = data.some(b => b.festival?.runningOrderActive);
-    if(names.length > 10){
-      const prevCount = parseInt(localStorage.getItem('woa26_live_count')||'0');
-      const diff = names.length - prevCount;
-      const ts = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-      let msg = '🟢 Live · ' + names.length + ' Bands · Stand: ' + ts;
-      if(manual && diff > 0)  msg += ' · ⚡ +'+diff+' neue Bands!';
-      if(manual && diff === 0 && prevCount > 0) msg += ' · Keine Änderungen';
-      if(roActive) msg += ' · Running Order aktiv!';
-      statusEl.textContent = msg;
-      statusEl.style.color = roActive ? '#f49600' : '#50c878';
-      localStorage.setItem('woa26_live_ts', Date.now());
-      localStorage.setItem('woa26_live_count', names.length);
-    } else {
-      throw new Error('Zu wenige Bands gefunden');
-    }
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      data = await res.json();
+      if(Array.isArray(data) && data.length > 10) break;
+      data = null;
+    } catch(e){ data = null; }
+  }
+
+  try{
+    if(!data || !Array.isArray(data) || data.length <= 10) throw new Error('Keine validen Daten');
+    const names    = data.map(b=>b.artist?.title||b.title).filter(Boolean);
+    const roActive = data.some(b=>b.festival?.runningOrderActive);
+    const prevCount= parseInt(localStorage.getItem('woa26_live_count')||'0');
+    const diff     = names.length - prevCount;
+    const ts       = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    let msg = '🟢 Live · '+names.length+' Bands · Stand: '+ts;
+    if(manual && diff>0)  msg += ' · ⚡ +'+diff+' neue Bands!';
+    if(manual && diff===0 && prevCount>0) msg += ' · Keine Änderungen';
+    if(roActive) msg += ' · Running Order aktiv!';
+    statusEl.textContent = msg;
+    statusEl.style.color = roActive ? '#f49600' : '#50c878';
+    localStorage.setItem('woa26_live_ts', Date.now());
+    localStorage.setItem('woa26_live_count', names.length);
   } catch(e){
-    const lastTs = localStorage.getItem('woa26_live_ts');
+    const lastTs    = localStorage.getItem('woa26_live_ts');
     const lastCount = localStorage.getItem('woa26_live_count');
-    const errMsg = e?.message ? ' ['+e.message+']' : '';
+    const errMsg    = e?.message ? ' ['+e.message+']' : '';
     if(lastTs){
       const mins = Math.round((Date.now()-parseInt(lastTs))/60000);
-      const h = Math.floor(mins/60), m = mins%60;
+      const h=Math.floor(mins/60), m=mins%60;
       const ago = h>0 ? h+'h '+m+'min' : m+'min';
       statusEl.textContent = '🟡 Keine Verbindung · Zuletzt: vor '+ago+' ('+lastCount+' Bands)'+errMsg;
     } else {
@@ -568,45 +576,53 @@ async function tryLiveUpdate(manual=false){
     statusEl.style.color = '#9a9a9a';
     console.warn('Live update failed:', e);
   }
-  if(btnEl){ btnEl.disabled = false; }
+  if(btnEl) btnEl.disabled = false;
 }
 
-// ── ENTDECKEN ────────────────────────────────────────────────
+function manualUpdate(){ tryLiveUpdate(true); }
+
+// ── ENTDECKEN ─────────────────────────────────────────────────────────────────
 let currentRandom = null;
-let modalBand = null;
+let modalBand     = null;
+let bandOfDay     = null;   // lazy-init on first renderDiscover()
 
 function getBandOfDay(){
-  const d = new Date();
+  if(!BANDS || !BANDS.length) return null;
+  const d    = new Date();
   const seed = d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
   return BANDS[seed % BANDS.length];
 }
-let bandOfDay = getBandOfDay();
 
 function makeBadgeHtml(b){
-  let h = '';
-  if(b.hl) h += '<span class="bdg hl">Headliner</span>';
-  if(b.firstTime) h += '<span class="bdg ft">First Timer</span>';
-  if(b.badge) h += '<span class="bdg sp">'+b.badge+'</span>';
+  let h='';
+  if(b.hl)        h+='<span class="bdg hl">Headliner</span>';
+  if(b.firstTime) h+='<span class="bdg ft">First Timer</span>';
+  if(b.badge)     h+='<span class="bdg sp">'+b.badge+'</span>';
   return h;
 }
 
 function getScheduleHtml(name){
-  const slots = SCHED.filter(s=>s.name.toLowerCase()===name.toLowerCase());
+  const slots = (typeof SCHED!=='undefined' ? SCHED : [])
+    .filter(s=>s.name.toLowerCase()===name.toLowerCase());
   if(!slots.length) return '<span style="color:var(--muted)">Spielzeit noch nicht bekannt</span>';
-  return slots.map(s=>'<b>'+DAYS[s.day]+'</b> &nbsp;'+m2t(s.start)+'&#8211;'+m2t(s.end)+'&nbsp;&nbsp;'+stL(normStage(s.stage))).join('<br>');
+  return slots.map(s=>'<b>'+DAYS[s.day]+'</b>&nbsp;'+m2t(s.start)+'&#8211;'+m2t(s.end)+'&nbsp;&nbsp;'+stL(normStage(s.stage))).join('<br>');
 }
 
-function escBand(n){ return n.replace(/'/g,"\'"); }
-
 function renderDiscover(){
-  const total = BANDS.length;
-  const hlCount = BANDS.filter(b=>b.hl).length;
-  const ftCount = BANDS.filter(b=>b.firstTime).length;
-  const spCount = BANDS.filter(b=>b.badge).length;
+  // lazy-init band of day
+  if(!bandOfDay) bandOfDay = getBandOfDay();
+  if(!bandOfDay || !BANDS.length) return;
+
+  const total    = BANDS.length;
+  const hlCount  = BANDS.filter(b=>b.hl).length;
+  const ftCount  = BANDS.filter(b=>b.firstTime).length;
+  const spCount  = BANDS.filter(b=>b.badge).length;
   const favCount = favs.length;
-  const favPct = total ? Math.round(favCount/total*100) : 0;
-  const withSched = SCHED.length ? [...new Set(SCHED.map(s=>s.name.toLowerCase()))].length : 0;
-  document.getElementById('discover-stats-grid').innerHTML = [
+  const favPct   = total ? Math.round(favCount/total*100) : 0;
+  const withSched= (typeof SCHED!=='undefined'&&SCHED.length)
+    ? [...new Set(SCHED.map(s=>s.name.toLowerCase()))].length : 0;
+
+  document.getElementById('discover-stats-grid').innerHTML=[
     ['&#127775;','Headliner',hlCount],
     ['&#127381;','First Timer',ftCount],
     ['&#11088;','Special Acts',spCount],
@@ -621,21 +637,26 @@ function renderDiscover(){
     '</div>'
   ).join('');
 
-  document.getElementById('bod-name').textContent = bandOfDay.name;
-  document.getElementById('bod-badges').innerHTML = makeBadgeHtml(bandOfDay);
-  document.getElementById('bod-fav').textContent = isFav(bandOfDay.name) ? '⭐' : '☆';
+  // Band des Tages
+  document.getElementById('bod-name').textContent  = bandOfDay.name;
+  document.getElementById('bod-badges').innerHTML  = makeBadgeHtml(bandOfDay);
+  document.getElementById('bod-fav').textContent   = isFav(bandOfDay.name) ? '⭐' : '☆';
 
-  const unfaved = BANDS.filter(b=>!isFav(b.name));
+  // Noch nicht in Favs
+  const unfaved  = BANDS.filter(b=>!isFav(b.name));
+  const uCount   = unfaved.length;
   document.getElementById('undiscovered-info').textContent =
-    unfaved.length + ' von ' + total + ' Bands noch nicht in deinen Favoriten';
-  const sample = [...unfaved].sort(()=>Math.random()-.5).slice(0,24);
-  document.getElementById('undiscovered-grid').innerHTML = sample.map(b=>
-    '<div class="bcard'+(b.hl?' hl':'')+'" onclick="tog(''+escBand(b.name)+'');renderFavs();renderDiscover()" title="Als Favorit markieren" style="cursor:pointer">'+
-    '<span class="star">'+(isFav(b.name)?'⭐':'☆')+'</span>'+
-    '<div class="binfo"><div class="bname">'+b.name+'</div>'+
-    '<div class="bdgs">'+makeBadgeHtml(b)+'</div></div></div>'
-  ).join('');
+    uCount+' von '+total+' Bands noch nicht in deinen Favoriten';
+  const sample   = [...unfaved].sort(()=>Math.random()-.5).slice(0,24);
+  document.getElementById('undiscovered-grid').innerHTML = sample.map(b=>{
+    const en = escN(b.name);
+    return '<div class="bcard'+(b.hl?' hl':'')+'" onclick="tog(\''+en+'\');renderFavs();renderDiscover()" title="Als Favorit markieren">'+
+      '<span class="star">'+(isFav(b.name)?'⭐':'☆')+'</span>'+
+      '<div class="binfo"><div class="bname">'+b.name+'</div>'+
+      '<div class="bdgs">'+makeBadgeHtml(b)+'</div></div></div>';
+  }).join('');
 
+  // Update random-fav-btn if card visible
   if(currentRandom){
     const rfb = document.getElementById('random-fav-btn');
     if(rfb) rfb.textContent = isFav(currentRandom.name) ? '⭐ Entfernen' : '☆ Favorit';
@@ -644,15 +665,15 @@ function renderDiscover(){
 
 function rollRandom(mode){
   let pool = [...BANDS];
-  if(mode==='new') pool = pool.filter(b=>b.firstTime);
+  if(mode==='new')     pool = pool.filter(b=>b.firstTime);
   else if(mode==='hl') pool = pool.filter(b=>b.hl);
   else if(mode==='unfaved') pool = pool.filter(b=>!isFav(b.name));
   if(!pool.length){ alert('Keine Bands in dieser Kategorie!'); return; }
   currentRandom = pool[Math.floor(Math.random()*pool.length)];
   const icons = {all:'🎲',new:'🆕',hl:'🌟',unfaved:'⭐'};
-  document.getElementById('random-icon').textContent = icons[mode]||'🎲';
-  document.getElementById('random-name').textContent = currentRandom.name;
-  document.getElementById('random-badges').innerHTML = makeBadgeHtml(currentRandom);
+  document.getElementById('random-icon').textContent   = icons[mode]||'🎲';
+  document.getElementById('random-name').textContent   = currentRandom.name;
+  document.getElementById('random-badges').innerHTML   = makeBadgeHtml(currentRandom);
   const rfb = document.getElementById('random-fav-btn');
   rfb.textContent = isFav(currentRandom.name) ? '⭐ Entfernen' : '☆ Favorit';
   document.getElementById('random-card').style.display = '';
@@ -661,27 +682,24 @@ function rollRandom(mode){
 function showBandDetail(b){
   if(!b) return;
   modalBand = b;
-  document.getElementById('modal-name').textContent = b.name;
-  document.getElementById('modal-badges').innerHTML = makeBadgeHtml(b);
-  document.getElementById('modal-schedule').innerHTML = getScheduleHtml(b.name);
+  document.getElementById('modal-name').textContent  = b.name;
+  document.getElementById('modal-badges').innerHTML  = makeBadgeHtml(b);
+  document.getElementById('modal-schedule').innerHTML= getScheduleHtml(b.name);
   updateModalFavBtn();
-  document.getElementById('band-modal').style.display = '';
+  document.getElementById('band-modal').style.display='';
 }
 
 function updateModalFavBtn(){
   const btn = document.getElementById('modal-fav-btn');
-  if(btn && modalBand) btn.innerHTML = isFav(modalBand.name) ? '⭐ Aus Favs entfernen' : '☆ Zu Favs hinzufügen';
+  if(btn && modalBand)
+    btn.innerHTML = isFav(modalBand.name) ? '⭐ Aus Favs entfernen' : '☆ Zu Favs hinzufügen';
 }
 
 function closeBandModal(){
-  document.getElementById('band-modal').style.display = 'none';
+  document.getElementById('band-modal').style.display='none';
   renderDiscover();
 }
 // ── END ENTDECKEN ─────────────────────────────────────────────
-
-function manualUpdate(){
-  tryLiveUpdate(true);
-}
 
 // Run on load
 window.addEventListener('load', ()=>{
