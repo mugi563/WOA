@@ -149,11 +149,11 @@ h2.print-title{display:none}
 /* Entdecken grid */
 .disc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1px;background:var(--border2)}
 .disc-card{background:var(--s1);padding:.8rem 1rem;cursor:pointer;transition:background .15s;display:flex;flex-direction:column;gap:.35rem}
-.disc-card:hover{background:var(--s2)}
+.disc-card:hover{background:var(--s2)}.disc-card:hover [data-watch]{color:#ccc!important;border-color:rgba(255,255,255,.35)!important}
 .disc-card.hl{border-left:3px solid var(--red)}
 .disc-card-name{font-size:.95rem;font-weight:700;color:#fff;line-height:1.3}
 /* Vorgemerkt section in Favs */
-.watch-item{background:var(--s1);padding:.65rem .9rem;display:flex;align-items:center;gap:.75rem;border-left:3px solid #7ec8e3}
+.watch-item{background:var(--s1);padding:.7rem 1rem;display:flex;align-items:flex-start;gap:.75rem;border-left:3px solid #7ec8e3}
 .watch-item .fn{font-weight:600;color:#fff}
 .watch-item .fm{font-size:.78rem;color:var(--muted);margin-top:.15rem}
 /* Modal embed */
@@ -449,9 +449,14 @@ function renderFavs(){
       const si=sc?DAYS[sc.day]+' &middot;&nbsp;'+m2t(sc.start)+'&#8211;'+m2t(sc.end)+'&nbsp;&middot;&nbsp;'+stL(sc.stage):'Spielzeit noch nicht bekannt';
       return '<div class="watch-item" data-wname="'+b.name.replace(/"/g,'&quot;')+'">'
         +'<div style="font-size:1rem;flex-shrink:0">&#128204;</div>'
-        +'<div style="flex:1;min-width:0"><div class="fn">'+b.name+' <span class="bdg wl">Vorgemerkt</span></div><div class="fm">'+si+'</div></div>'
-        +(sc?'<button class="btn" style="font-size:.72rem;padding:.25rem .6rem" data-action="watch2fav" data-bname="'+b.name.replace(/"/g,'&quot;')+'">&#9733; Zu Favs</button>':'')
-        +'<button class="rm" data-action="rmwatch" data-bname="'+b.name.replace(/"/g,'&quot;')+'">&#10005;</button>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div class="fn">'+b.name+' <span class="bdg wl">Vorgemerkt</span></div>'
+        +'<div class="fm">'+si+'</div>'
+        +'</div>'
+        +'<div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-end;flex-shrink:0">'
+        +'<button class="btn" style="font-size:.72rem;padding:.25rem .65rem;white-space:nowrap;background:rgba(126,200,227,.15);border-color:#7ec8e3;color:#7ec8e3" data-action="watch2fav" data-bname="'+b.name.replace(/"/g,'&quot;')+'">&#9654; In Zeitplan</button>'
+        +'<button class="rm" data-action="rmwatch" data-bname="'+b.name.replace(/"/g,'&quot;')+'">&#10005; Entfernen</button>'
+        +'</div>'
       +'</div>';
     }).join('');
   }
@@ -481,7 +486,7 @@ function renderFavs(){
     const action=btn.dataset.action;
     if(action==='rmfav'){ tog(name); }
     else if(action==='rmwatch'){ togWatch(name); }
-    else if(action==='watch2fav'){ watchlist=watchlist.filter(w=>w!==name); saveWatch(); favs.push(name); save(); renderFavs(); renderAll(); }
+    else if(action==='watch2fav'){ watchlist=watchlist.filter(w=>w!==name); saveWatch(); if(!isFav(name)){favs.push(name);save();} renderFavs(); renderAll(); if(document.getElementById('view-discover')&&document.getElementById('view-discover').classList.contains('active'))renderDiscoverGrid(); }
   };
 }
 function renderTT(){
@@ -554,6 +559,8 @@ function downloadPDF(){
 }
 
 document.getElementById('search').addEventListener('input',e=>{query=e.target.value;renderLineup();});
+// Init discover grid on load so it's ready when tab is clicked
+setTimeout(()=>{renderDiscover();},50);
 document.getElementById('sort-sel').addEventListener('change',e=>{sortM=e.target.value;renderLineup();});
 function clearFilters(){query='';alpha='all';sortM='az';onlyHL=false;document.getElementById('search').value='';document.getElementById('sort-sel').value='az';document.getElementById('btn-hl').classList.remove('on');buildAlpha();renderLineup();}
 function renderAll(){renderLineup();const av=document.querySelector('.view.active')?.id;if(av==='view-favs')renderFavs();if(av==='view-tt')renderTT();}
@@ -650,11 +657,16 @@ function getSchedHtml(name){
 }
 
 function getSpotifyEmbed(name){
-  const q=encodeURIComponent(name);
-  return '<iframe style="width:100%;height:152px;border:none;border-radius:4px" '
-    +'src="https://open.spotify.com/embed/search/'+q+'" '
-    +'allow="autoplay;clipboard-write;encrypted-media;fullscreen;picture-in-picture" '
-    +'loading="lazy"></iframe>';
+  const sp='https://open.spotify.com/search/'+encodeURIComponent(name);
+  const yt='https://www.youtube.com/results?search_query='+encodeURIComponent(name+' band official music');
+  const lf='https://www.last.fm/music/'+encodeURIComponent(name);
+  return '<div style="background:var(--s2);border:1px solid var(--border);border-radius:4px;padding:.75rem 1rem;margin-bottom:.5rem">'
+    +'<div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.7rem">🎵 Songs &amp; Infos</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:.5rem">'
+    +'<a href="'+sp+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.4rem;background:#1DB954;color:#000;padding:.45rem .9rem;border-radius:2rem;font-size:.8rem;font-weight:700;text-decoration:none">&#9654; Spotify</a>'
+    +'<a href="'+yt+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.4rem;background:#FF0000;color:#fff;padding:.45rem .9rem;border-radius:2rem;font-size:.8rem;font-weight:700;text-decoration:none">&#127910; YouTube</a>'
+    +'<a href="'+lf+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.4rem;background:#d51007;color:#fff;padding:.45rem .9rem;border-radius:2rem;font-size:.8rem;font-weight:700;text-decoration:none">&#127908; Last.fm</a>'
+    +'</div></div>';
 }
 
 function filterDiscover(){
@@ -681,21 +693,31 @@ function renderDiscoverGrid(){
   }
   if(empty) empty.style.display='none';
 
-  // Use data-index to avoid any quote escaping in onclick
-  grid.innerHTML=pool.map((b,i)=>{
-    return '<div class="disc-card'+(b.hl?' hl':'')+'" data-bname="'+b.name.replace(/"/g,'&quot;')+'">'
+  // Cards with inline "Vormerken" + "Details & Songs"
+  grid.innerHTML=pool.map(b=>{
+    const wl=isWatch(b.name);
+    const qn=b.name.replace(/"/g,'&quot;');
+    return '<div class="disc-card'+(b.hl?' hl':'')+'" data-bname="'+qn+'">'
       +'<div class="disc-card-name">'+b.name+'</div>'
-      +'<div class="bdgs">'+makeBadgeHtml(b)+'</div>'
+      +'<div class="bdgs" style="margin:.2rem 0">'+makeBadgeHtml(b)+'</div>'
+      +'<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.5rem">'
+      +'<button data-watch="'+qn+'" style="font-size:.71rem;padding:.28rem .65rem;border:1px solid '+(wl?'#7ec8e3':'rgba(255,255,255,.2)')+';background:'+(wl?'rgba(126,200,227,.15)':'transparent')+';color:'+(wl?'#7ec8e3':'var(--muted)')+';cursor:pointer;font-family:var(--body);font-weight:700;letter-spacing:.04em;border-radius:2px;text-transform:uppercase;white-space:nowrap">'
+      +(wl?'📌 Vorgemerkt':'📌 Vormerken')+'</button>'
+      +'<button data-open="'+qn+'" style="font-size:.71rem;padding:.28rem .65rem;border:1px solid rgba(255,255,255,.2);background:transparent;color:var(--muted);cursor:pointer;font-family:var(--body);font-weight:700;letter-spacing:.04em;border-radius:2px;text-transform:uppercase;white-space:nowrap">'
+      +'🎵 Songs</button>'
+      +'</div>'
     +'</div>';
   }).join('');
 
-  // Event delegation
   grid.onclick=function(e){
+    const wb=e.target.closest('[data-watch]');
+    if(wb){e.stopPropagation();togWatch(wb.dataset.watch);renderDiscoverGrid();const fv=document.getElementById('view-favs');if(fv&&fv.classList.contains('active'))renderFavs();return;}
+    const ob=e.target.closest('[data-open]');
+    if(ob){e.stopPropagation();const b=BANDS.find(x=>x.name===ob.dataset.open);if(b)openDiscoverModal(b);return;}
     const card=e.target.closest('.disc-card');
-    if(!card) return;
-    const name=card.dataset.bname;
-    const b=BANDS.find(x=>x.name===name);
-    if(b) openDiscoverModal(b);
+    if(!card)return;
+    const b=BANDS.find(x=>x.name===card.dataset.bname);
+    if(b)openDiscoverModal(b);
   };
 }
 
