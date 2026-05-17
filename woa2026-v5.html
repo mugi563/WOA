@@ -364,6 +364,7 @@ const normStage = s => STAGE_ALIAS[s] || s;
 
 let favs = JSON.parse(localStorage.getItem('woa26_favs')||'[]');
 let watchlist = JSON.parse(localStorage.getItem('woa26_watch')||'[]');
+var discQ='', discSort='az', dmBand=null;
 let alpha='all', query='', sortM='az', onlyHL=false;
 
 const save  = () => localStorage.setItem('woa26_favs', JSON.stringify(favs));
@@ -576,9 +577,6 @@ function renderAll(){renderLineup();const av=document.querySelector('.view.activ
 // ENTDECKEN – komplett neu
 // ══════════════════════════════════════════════════════════════
 
-let dmBand   = null;          // aktuell im Modal angezeigte Band
-let discQ    = '';            // Suchtext
-let discSort = 'az';          // Sortierung
 
 function discSearch(){
   discQ    = (document.getElementById('disc-search')||{value:''}).value||'';
