@@ -572,97 +572,6 @@ document.getElementById('sort-sel').addEventListener('change',e=>{sortM=e.target
 function clearFilters(){query='';alpha='all';sortM='az';onlyHL=false;document.getElementById('search').value='';document.getElementById('sort-sel').value='az';document.getElementById('btn-hl').classList.remove('on');buildAlpha();renderLineup();}
 function renderAll(){renderLineup();const av=document.querySelector('.view.active')?.id;if(av==='view-favs')renderFavs();if(av==='view-tt')renderTT();if(av==='view-discover')buildDiscGrid();}
 
-buildAlpha(); renderLineup();
-</script>
-
-<!-- SW moved to inline blob -->
-<script>
-// ── LIVE UPDATE ───────────────────────────────────────────────
-async function tryLiveUpdate(manual=false){
-  const statusEl=document.getElementById('live-status');
-  const btnEl=document.getElementById('btn-refresh');
-  if(!statusEl) return;
-  statusEl.textContent='⏳ Verbinde mit wacken.com…';
-  statusEl.style.color='#f49600';
-  if(btnEl) btnEl.disabled=true;
-  const TARGET='https://www.wacken.com/fileadmin/Json/bandlist-concert.json';
-  const PROXIES=[
-    u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
-    u=>'https://corsproxy.io/?'+encodeURIComponent(u),
-    u=>u
-  ];
-  let data=null;
-  for(const proxy of PROXIES){
-    try{
-      const ctrl=new AbortController();
-      const t=setTimeout(()=>ctrl.abort(),8000);
-      const res=await fetch(proxy(TARGET),{signal:ctrl.signal,headers:{'Accept':'application/json'}});
-      clearTimeout(t);
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      data=await res.json();
-      if(Array.isArray(data)&&data.length>10) break;
-      data=null;
-    }catch(e){data=null;}
-  }
-  try{
-    if(!data||!Array.isArray(data)||data.length<=10) throw new Error('Keine validen Daten');
-    const names=data.map(b=>b.artist?.title||b.title).filter(Boolean);
-    const roActive=data.some(b=>b.festival?.runningOrderActive);
-    const prevCount=parseInt(localStorage.getItem('woa26_live_count')||'0');
-    const diff=names.length-prevCount;
-    const ts=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    let msg='🟢 Live · '+names.length+' Bands · Stand: '+ts;
-    if(manual&&diff>0) msg+=' · ⚡ +'+diff+' neue Bands!';
-    if(manual&&diff===0&&prevCount>0) msg+=' · Keine Änderungen';
-    if(roActive) msg+=' · Running Order aktiv!';
-    statusEl.textContent=msg;
-    statusEl.style.color=roActive?'#f49600':'#50c878';
-    localStorage.setItem('woa26_live_ts',Date.now());
-    localStorage.setItem('woa26_live_count',names.length);
-  }catch(e){
-    const lastTs=localStorage.getItem('woa26_live_ts');
-    const lastCount=localStorage.getItem('woa26_live_count');
-    const errMsg=e?.message?' ['+e.message+']':'';
-    if(lastTs){
-      const mins=Math.round((Date.now()-parseInt(lastTs))/60000);
-      const h=Math.floor(mins/60),m=mins%60;
-      statusEl.textContent='🟡 Keine Verbindung · Zuletzt: vor '+(h>0?h+'h '+m+'min':m+'min')+' ('+lastCount+' Bands)'+errMsg;
-    }else{
-      statusEl.textContent='⚪ Keine Verbindung · Eingebettete Daten ('+BANDS.length+' Bands)'+errMsg;
-    }
-    statusEl.style.color='#9a9a9a';
-  }
-  if(btnEl) btnEl.disabled=false;
-}
-function manualUpdate(){tryLiveUpdate(true);}
-
-// ── ENTDECKEN ─────────────────────────────────────────────────
-let discModalBand=null;
-let bandOfDay=null;
-let discFilter='';
-
-function getBandOfDay(){
-  if(!BANDS||!BANDS.length) return null;
-  const d=new Date();
-  const seed=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
-  return BANDS[seed%BANDS.length];
-}
-
-function makeBadgeHtml(b){
-  let h='';
-  if(b.hl)        h+='<span class="bdg hl">Headliner</span>';
-  if(b.firstTime) h+='<span class="bdg ft">First Timer</span>';
-  if(b.badge)     h+='<span class="bdg sp">'+b.badge+'</span>';
-  if(isWatch(b.name)) h+='<span class="bdg wl">Vorgemerkt</span>';
-  return h;
-}
-
-function getSchedHtml(name){
-  const slots=(typeof SCHED!=='undefined'?SCHED:[]).filter(s=>s.name.toLowerCase()===name.toLowerCase());
-  if(!slots.length) return '<span style="color:var(--muted)">Spielzeit noch nicht bekannt</span>';
-  return slots.map(s=>'<b>'+DAYS[s.day]+'</b>&nbsp;'+m2t(s.start)+'&#8211;'+m2t(s.end)+'&nbsp;&nbsp;'+stL(normStage(s.stage))).join('<br>');
-}
-
 // ══════════════════════════════════════════════════════════════
 // ENTDECKEN – komplett neu
 // ══════════════════════════════════════════════════════════════
@@ -809,6 +718,97 @@ function closeDM(){
   document.getElementById('disc-modal').style.display='none';
   dmBand = null;
 }
+
+buildAlpha(); renderLineup();
+
+
+
+// ── LIVE UPDATE ───────────────────────────────────────────────
+async function tryLiveUpdate(manual=false){
+  const statusEl=document.getElementById('live-status');
+  const btnEl=document.getElementById('btn-refresh');
+  if(!statusEl) return;
+  statusEl.textContent='⏳ Verbinde mit wacken.com…';
+  statusEl.style.color='#f49600';
+  if(btnEl) btnEl.disabled=true;
+  const TARGET='https://www.wacken.com/fileadmin/Json/bandlist-concert.json';
+  const PROXIES=[
+    u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
+    u=>'https://corsproxy.io/?'+encodeURIComponent(u),
+    u=>u
+  ];
+  let data=null;
+  for(const proxy of PROXIES){
+    try{
+      const ctrl=new AbortController();
+      const t=setTimeout(()=>ctrl.abort(),8000);
+      const res=await fetch(proxy(TARGET),{signal:ctrl.signal,headers:{'Accept':'application/json'}});
+      clearTimeout(t);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      data=await res.json();
+      if(Array.isArray(data)&&data.length>10) break;
+      data=null;
+    }catch(e){data=null;}
+  }
+  try{
+    if(!data||!Array.isArray(data)||data.length<=10) throw new Error('Keine validen Daten');
+    const names=data.map(b=>b.artist?.title||b.title).filter(Boolean);
+    const roActive=data.some(b=>b.festival?.runningOrderActive);
+    const prevCount=parseInt(localStorage.getItem('woa26_live_count')||'0');
+    const diff=names.length-prevCount;
+    const ts=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    let msg='🟢 Live · '+names.length+' Bands · Stand: '+ts;
+    if(manual&&diff>0) msg+=' · ⚡ +'+diff+' neue Bands!';
+    if(manual&&diff===0&&prevCount>0) msg+=' · Keine Änderungen';
+    if(roActive) msg+=' · Running Order aktiv!';
+    statusEl.textContent=msg;
+    statusEl.style.color=roActive?'#f49600':'#50c878';
+    localStorage.setItem('woa26_live_ts',Date.now());
+    localStorage.setItem('woa26_live_count',names.length);
+  }catch(e){
+    const lastTs=localStorage.getItem('woa26_live_ts');
+    const lastCount=localStorage.getItem('woa26_live_count');
+    const errMsg=e?.message?' ['+e.message+']':'';
+    if(lastTs){
+      const mins=Math.round((Date.now()-parseInt(lastTs))/60000);
+      const h=Math.floor(mins/60),m=mins%60;
+      statusEl.textContent='🟡 Keine Verbindung · Zuletzt: vor '+(h>0?h+'h '+m+'min':m+'min')+' ('+lastCount+' Bands)'+errMsg;
+    }else{
+      statusEl.textContent='⚪ Keine Verbindung · Eingebettete Daten ('+BANDS.length+' Bands)'+errMsg;
+    }
+    statusEl.style.color='#9a9a9a';
+  }
+  if(btnEl) btnEl.disabled=false;
+}
+function manualUpdate(){tryLiveUpdate(true);}
+
+// ── ENTDECKEN ─────────────────────────────────────────────────
+let discModalBand=null;
+let bandOfDay=null;
+let discFilter='';
+
+function getBandOfDay(){
+  if(!BANDS||!BANDS.length) return null;
+  const d=new Date();
+  const seed=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+  return BANDS[seed%BANDS.length];
+}
+
+function makeBadgeHtml(b){
+  let h='';
+  if(b.hl)        h+='<span class="bdg hl">Headliner</span>';
+  if(b.firstTime) h+='<span class="bdg ft">First Timer</span>';
+  if(b.badge)     h+='<span class="bdg sp">'+b.badge+'</span>';
+  if(isWatch(b.name)) h+='<span class="bdg wl">Vorgemerkt</span>';
+  return h;
+}
+
+function getSchedHtml(name){
+  const slots=(typeof SCHED!=='undefined'?SCHED:[]).filter(s=>s.name.toLowerCase()===name.toLowerCase());
+  if(!slots.length) return '<span style="color:var(--muted)">Spielzeit noch nicht bekannt</span>';
+  return slots.map(s=>'<b>'+DAYS[s.day]+'</b>&nbsp;'+m2t(s.start)+'&#8211;'+m2t(s.end)+'&nbsp;&nbsp;'+stL(normStage(s.stage))).join('<br>');
+}
+
 
 window.addEventListener('load',()=>{
   setTimeout(()=>tryLiveUpdate(false),1200);
