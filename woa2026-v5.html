@@ -283,61 +283,41 @@ self.addEventListener('fetch', e => {
   </div>
 
 <div class="view" id="view-discover">
-
-  <!-- Suchleiste -->
-  <div class="ctrls" style="margin-bottom:1rem">
+  <div class="ctrls">
     <div class="sw">
       <svg class="si" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input class="search" id="disc-search" type="search" placeholder="Band suchen …" oninput="discSearch()">
+      <input class="search" id="disc-q" type="search" placeholder="Band suchen …" oninput="discRender()">
     </div>
-    <select id="disc-sort" onchange="discSearch()" style="padding:.7rem .85rem;background:var(--s1);border:1px solid var(--border);color:var(--text);font-size:.88rem;cursor:pointer;font-family:var(--body);outline:none;text-transform:uppercase;font-weight:600;letter-spacing:.03em">
+    <select onchange="discRender()" id="disc-s" class="select" style="text-transform:uppercase;font-weight:600">
       <option value="az">A – Z</option>
       <option value="za">Z – A</option>
       <option value="hl">Headliner zuerst</option>
     </select>
   </div>
-
-  <!-- Anzahl -->
   <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.75rem">
-    &#127761; Noch nicht in Favoriten: <span id="disc-count" style="color:var(--text2)">0</span> Bands
+    Noch nicht in Favoriten: <span id="disc-cnt">–</span>
   </div>
-
-  <!-- Grid -->
   <div class="grid" id="disc-grid"></div>
-  <div id="disc-empty" style="display:none;padding:2.5rem;text-align:center;color:var(--muted);border:1px dashed var(--border2)">
-    Alle Bands sind bereits in deinen Favoriten! 🎉
-  </div>
+  <p id="disc-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted)">Alle Bands sind bereits in deinen Favoriten! 🎉</p>
 
-  <!-- Modal -->
-  <div id="disc-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.9);backdrop-filter:blur(10px);padding:1rem;overflow-y:auto" onclick="if(event.target===this)closeDM()">
-    <div style="max-width:580px;margin:2rem auto;background:var(--s1);border:1px solid var(--border)">
-
-      <!-- Header -->
-      <div style="background:var(--red);padding:.8rem 1.1rem;display:flex;justify-content:space-between;align-items:center">
-        <span id="dm-title" style="font-weight:800;font-size:1rem;text-transform:uppercase;letter-spacing:.06em;color:#fff"></span>
-        <button onclick="closeDM()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0">&#10005;</button>
+  <div id="disc-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.92);backdrop-filter:blur(8px);padding:1rem;overflow-y:auto" onclick="if(event.target===this)discClose()">
+    <div style="max-width:540px;margin:2rem auto;background:var(--s1);border:1px solid var(--border)">
+      <div style="background:var(--red);padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center">
+        <strong id="disc-m-name" style="font-size:1rem;color:#fff;text-transform:uppercase;letter-spacing:.06em"></strong>
+        <button onclick="discClose()" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer">&#10005;</button>
       </div>
-
-      <div style="padding:1.1rem 1.25rem">
-        <!-- Badges -->
-        <div id="dm-badges" style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:1rem"></div>
-
-        <!-- Spielplan -->
-        <div id="dm-sched" style="background:var(--s2);padding:.6rem .9rem;font-size:.84rem;line-height:1.8;border-left:3px solid var(--red);margin-bottom:1.1rem;color:var(--text)"></div>
-
-        <!-- Songs Embed -->
-        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.6rem">🎵 Reinhören</div>
-        <div id="dm-embed" style="margin-bottom:1.1rem"></div>
-
-        <!-- Aktionen -->
-        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-          <button id="dm-btn-watch" class="btn" onclick="dmTogWatch()" style="border-color:#7ec8e3;color:#7ec8e3"></button>
-          <button id="dm-btn-fav"   class="btn" onclick="dmTogFav()"></button>
+      <div style="padding:1rem 1.2rem">
+        <div id="disc-m-badges" style="margin-bottom:.8rem;display:flex;gap:.3rem;flex-wrap:wrap"></div>
+        <div id="disc-m-sched" style="background:var(--s2);padding:.55rem .85rem;font-size:.84rem;line-height:1.8;border-left:3px solid var(--red);margin-bottom:1rem"></div>
+        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem;font-weight:700">&#127925; Reinhören</div>
+        <div id="disc-m-links" style="margin-bottom:1rem"></div>
+        <div style="display:flex;gap:.55rem;flex-wrap:wrap">
+          <button id="disc-m-w" class="btn" onclick="discTogWatch()" style="border-color:#7ec8e3;color:#7ec8e3">&#128204; Vormerken</button>
+          <button id="disc-m-f" class="btn" onclick="discTogFav()">&#9733; Zu Favoriten</button>
         </div>
       </div>
     </div>
   </div>
-
 </div>
 
 
@@ -364,7 +344,6 @@ const normStage = s => STAGE_ALIAS[s] || s;
 
 let favs = JSON.parse(localStorage.getItem('woa26_favs')||'[]');
 let watchlist = JSON.parse(localStorage.getItem('woa26_watch')||'[]');
-var discQ='', discSort='az', dmBand=null;
 let alpha='all', query='', sortM='az', onlyHL=false;
 
 const save  = () => localStorage.setItem('woa26_favs', JSON.stringify(favs));
@@ -372,7 +351,7 @@ const isFav = n  => favs.includes(n);
 const tog   = n  => { if(isFav(n)) favs=favs.filter(f=>f!==n); else favs.push(n); save(); renderAll(); };
 const saveWatch  = () => localStorage.setItem('woa26_watch', JSON.stringify(watchlist));
 const isWatch    = n  => watchlist.includes(n);
-const togWatch   = n  => { if(isWatch(n)) watchlist=watchlist.filter(w=>w!==n); else { watchlist.push(n); if(isFav(n)){favs=favs.filter(f=>f!==n);save();} } saveWatch(); renderFavs(); buildDiscGrid(); };
+const togWatch   = n  => { if(isWatch(n)) watchlist=watchlist.filter(w=>w!==n); else { watchlist.push(n); if(isFav(n)){favs=favs.filter(f=>f!==n);save();} } saveWatch(); renderFavs(); discRender(); };
 const m2t   = m  => String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
 const stL   = id => STAGES.find(s=>s.id===normStage(id))?.label||id;
 const stC   = id => STAGES.find(s=>s.id===id)?.color||'#333';
@@ -386,7 +365,7 @@ function showView(v){
   document.querySelectorAll('.tab')[{lineup:0,favs:1,tt:2,discover:3}[v]].classList.add('active');
   if(v==='tt') renderTT();
   if(v==='favs') renderFavs();
-  if(v==='discover') buildDiscGrid();
+  if(v==='discover') discRender();
 }
 
 function buildAlpha(){
@@ -571,246 +550,189 @@ function downloadPDF(){
 document.getElementById('search').addEventListener('input',e=>{query=e.target.value;renderLineup();});
 document.getElementById('sort-sel').addEventListener('change',e=>{sortM=e.target.value;renderLineup();});
 function clearFilters(){query='';alpha='all';sortM='az';onlyHL=false;document.getElementById('search').value='';document.getElementById('sort-sel').value='az';document.getElementById('btn-hl').classList.remove('on');buildAlpha();renderLineup();}
-function renderAll(){renderLineup();const av=document.querySelector('.view.active')?.id;if(av==='view-favs')renderFavs();if(av==='view-tt')renderTT();if(av==='view-discover')buildDiscGrid();}
+function renderAll(){renderLineup();const av=document.querySelector('.view.active')?.id;if(av==='view-favs')renderFavs();if(av==='view-tt')renderTT();if(av==='view-discover')discRender();}
 
 // ══════════════════════════════════════════════════════════════
 // ENTDECKEN – komplett neu
 // ══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════
+// ENTDECKEN – neu gebaut, keine externen Abhängigkeiten
+// ═══════════════════════════════════════════════════════
+var _db = null; // aktuell geöffnete Band im Modal
 
-function discSearch(){
-  discQ    = (document.getElementById('disc-search')||{value:''}).value||'';
-  discSort = (document.getElementById('disc-sort')||{value:'az'}).value||'az';
-  buildDiscGrid();
-}
+function discRender() {
+  var grid  = document.getElementById('disc-grid');
+  var empty = document.getElementById('disc-empty');
+  var cnt   = document.getElementById('disc-cnt');
+  if (!grid) return;
 
-function buildDiscGrid(){
-  const grid  = document.getElementById('disc-grid');
-  const empty = document.getElementById('disc-empty');
-  const cnt   = document.getElementById('disc-count');
-  if(!grid || !BANDS || !BANDS.length) return;
+  // Frisch aus localStorage lesen (immer aktuell)
+  var fv = [];
+  try { fv = JSON.parse(localStorage.getItem('woa26_favs') || '[]'); } catch(e){}
 
-  // Alle Bands die NICHT Favorit sind
-  let pool = BANDS.filter(b => !isFav(b.name));
+  // Alle Bands die NICHT in Favoriten sind
+  var pool = [];
+  for (var i = 0; i < BANDS.length; i++) {
+    if (fv.indexOf(BANDS[i].name) === -1) pool.push(BANDS[i]);
+  }
+
+  // Zähler
+  if (cnt) cnt.textContent = pool.length;
 
   // Suche
-  if(discQ) pool = pool.filter(b => b.name.toLowerCase().includes(discQ.toLowerCase()));
+  var q = (document.getElementById('disc-q') || {value:''}).value.toLowerCase();
+  if (q) pool = pool.filter(function(b){ return b.name.toLowerCase().indexOf(q) > -1; });
 
   // Sortierung
-  if(discSort==='az')  pool.sort((a,b)=>a.name.localeCompare(b.name,'de'));
-  else if(discSort==='za')  pool.sort((a,b)=>b.name.localeCompare(a.name,'de'));
-  else if(discSort==='hl')  pool.sort((a,b)=>(b.hl?1:0)-(a.hl?1:0)||a.name.localeCompare(b.name,'de'));
+  var s = (document.getElementById('disc-s') || {value:'az'}).value;
+  if (s === 'za') pool.sort(function(a,b){ return b.name.localeCompare(a.name,'de'); });
+  else if (s === 'hl') pool.sort(function(a,b){ return (b.hl?1:0)-(a.hl?1:0) || a.name.localeCompare(b.name,'de'); });
+  else pool.sort(function(a,b){ return a.name.localeCompare(b.name,'de'); });
 
-  // Zähler (ohne Suchfilter)
-  if(cnt) cnt.textContent = BANDS.filter(b=>!isFav(b.name)).length;
-
-  if(!pool.length){
-    grid.innerHTML='';
-    if(empty) empty.style.display='';
+  if (!pool.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = '';
     return;
   }
-  if(empty) empty.style.display='none';
+  if (empty) empty.style.display = 'none';
 
-  grid.innerHTML = pool.map(b => {
-    const qn  = b.name.replace(/"/g,'&quot;');
-    const wl  = isWatch(b.name);
-    return '<div class="bcard'+(b.hl?' hl':'')+(wl?' fav':'')+'" data-disc="'+qn+'">'
-      + (wl ? '<div class="ribbon-wrap"><span class="ribbon-lbl">Vor-<br>gemerkt</span></div>' : '')
-      + '<div style="font-size:1rem;flex-shrink:0">'+(b.hl?'⚡':'🎵')+'</div>'
+  // Watchlist lesen
+  var wl = [];
+  try { wl = JSON.parse(localStorage.getItem('woa26_watch') || '[]'); } catch(e){}
+
+  var rows = [];
+  for (var j = 0; j < pool.length; j++) {
+    var b  = pool[j];
+    var w  = wl.indexOf(b.name) > -1;
+    var qn = b.name.replace(/"/g, '&quot;');
+    var badges = '';
+    if (b.hl)        badges += '<span class="bdg hl">Headliner</span> ';
+    if (b.firstTime) badges += '<span class="bdg ft">First Timer</span> ';
+    if (b.badge)     badges += '<span class="bdg sp">'+b.badge+'</span> ';
+    if (w)           badges += '<span class="bdg wl">Vorgemerkt</span>';
+    rows.push(
+      '<div class="bcard'+(b.hl?' hl':'')+(w?' fav':'')+'" data-dn="'+qn+'">'
+      + (w ? '<div class="ribbon-wrap"><span class="ribbon-lbl">Vor-<br>gemerkt</span></div>' : '')
+      + '<div style="font-size:1rem;flex-shrink:0">'+(b.hl?'&#9889;':'&#9835;')+'</div>'
       + '<div class="binfo">'
       +   '<div class="bname">'+b.name+'</div>'
-      +   '<div class="bdgs">'+makeBadgeHtml(b)+(wl?'<span class="bdg wl">Vorgemerkt</span>':'')+'</div>'
+      +   '<div class="bdgs">'+badges+'</div>'
       + '</div>'
-      + '</div>';
-  }).join('');
+      + '</div>'
+    );
+  }
+  grid.innerHTML = rows.join('');
 
-  // Klick auf Karte → Modal öffnen
-  grid.onclick = function(e){
-    const card = e.target.closest('[data-disc]');
-    if(!card) return;
-    const b = BANDS.find(x=>x.name===card.dataset.disc);
-    if(b) openDM(b);
+  grid.onclick = function(e) {
+    var card = e.target.closest('[data-dn]');
+    if (!card) return;
+    var name = card.dataset.dn;
+    var band = null;
+    for (var k = 0; k < BANDS.length; k++) { if (BANDS[k].name === name) { band = BANDS[k]; break; } }
+    if (band) discOpen(band);
   };
 }
 
-function openDM(b){
-  if(!b) return;
-  dmBand = b;
+function discOpen(b) {
+  _db = b;
+  var sp = encodeURIComponent(b.name);
+  document.getElementById('disc-m-name').textContent = b.name;
 
-  document.getElementById('dm-title').textContent = b.name;
-  document.getElementById('dm-badges').innerHTML  = makeBadgeHtml(b);
+  var badges = '';
+  if (b.hl)        badges += '<span class="bdg hl">Headliner</span> ';
+  if (b.firstTime) badges += '<span class="bdg ft">First Timer</span> ';
+  if (b.badge)     badges += '<span class="bdg sp">'+b.badge+'</span>';
+  document.getElementById('disc-m-badges').innerHTML = badges;
 
   // Spielzeit
-  const slots = (typeof SCHED!=='undefined'?SCHED:[]).filter(s=>s.name.toLowerCase()===b.name.toLowerCase());
-  document.getElementById('dm-sched').innerHTML = slots.length
-    ? slots.map(s=>'<b>'+DAYS[s.day]+'</b> &middot; '+m2t(s.start)+'–'+m2t(s.end)+' &middot; '+stL(s.stage)).join('<br>')
+  var slots = [];
+  if (typeof SCHED !== 'undefined') {
+    for (var i = 0; i < SCHED.length; i++) {
+      if (SCHED[i].name.toLowerCase() === b.name.toLowerCase()) slots.push(SCHED[i]);
+    }
+  }
+  var schedHtml = slots.length
+    ? slots.map(function(s){
+        var d = (typeof DAYS!=='undefined' && DAYS[s.day]) ? DAYS[s.day] : 'Tag '+s.day;
+        var t1 = String(Math.floor(s.start/60)).padStart(2,'0')+':'+String(s.start%60).padStart(2,'0');
+        var t2 = String(Math.floor(s.end/60)).padStart(2,'0')+':'+String(s.end%60).padStart(2,'0');
+        return '<b>'+d+'</b> &middot; '+t1+'&#8211;'+t2+' &middot; '+s.stage;
+      }).join('<br>')
     : '<span style="color:var(--muted)">Spielzeit noch nicht bekannt</span>';
+  document.getElementById('disc-m-sched').innerHTML = schedHtml;
 
-  // Embed – YouTube Playlist-Suche via iframe (funktioniert ohne Login)
-  const ytQ  = encodeURIComponent(b.name + ' greatest hits full album');
-  const ytQ2 = encodeURIComponent(b.name + ' official');
-  const spQ  = encodeURIComponent(b.name);
-  document.getElementById('dm-embed').innerHTML =
-    // YouTube iframe embed (Suchergebnis-Seite geht nicht per iframe; stattdessen: erster Treffer via nocookie)
-    '<div style="background:var(--s2);border:1px solid var(--border);border-radius:4px;padding:.8rem 1rem">'
-    + '<div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">Auf diesen Plattformen anhören:</div>'
-    + '<div style="display:flex;flex-wrap:wrap;gap:.55rem;margin-bottom:.9rem">'
-    +   '<a href="https://open.spotify.com/search/'+spQ+'" target="_blank" rel="noopener"'
-    +     ' style="display:inline-flex;align-items:center;gap:.4rem;background:#1DB954;color:#000;padding:.5rem 1rem;border-radius:2rem;font-size:.82rem;font-weight:800;text-decoration:none">'
-    +     '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>'
-    +     'Spotify</a>'
-    +   '<a href="https://music.youtube.com/search?q='+spQ+'" target="_blank" rel="noopener"'
-    +     ' style="display:inline-flex;align-items:center;gap:.4rem;background:#FF0000;color:#fff;padding:.5rem 1rem;border-radius:2rem;font-size:.82rem;font-weight:800;text-decoration:none">'
-    +     '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>'
-    +     'YouTube Music</a>'
-    +   '<a href="https://www.last.fm/music/'+spQ+'" target="_blank" rel="noopener"'
-    +     ' style="display:inline-flex;align-items:center;gap:.4rem;background:#ba0000;color:#fff;padding:.5rem 1rem;border-radius:2rem;font-size:.82rem;font-weight:800;text-decoration:none">'
-    +     '🎼 Last.fm</a>'
-    +   '<a href="https://www.youtube.com/results?search_query='+ytQ2+'" target="_blank" rel="noopener"'
-    +     ' style="display:inline-flex;align-items:center;gap:.4rem;background:var(--s1);color:var(--muted);border:1px solid var(--border);padding:.5rem 1rem;border-radius:2rem;font-size:.82rem;font-weight:800;text-decoration:none">'
-    +     '🔍 YouTube Suche</a>'
-    + '</div>'
-    + '<div style="font-size:.7rem;color:var(--muted)">Links öffnen die Künstlerseite direkt auf der jeweiligen Plattform.</div>'
+  // Musik-Links
+  document.getElementById('disc-m-links').innerHTML =
+    '<div style="display:flex;flex-wrap:wrap;gap:.5rem">'
+    + '<a href="https://open.spotify.com/search/'+sp+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.35rem;background:#1DB954;color:#000;padding:.45rem 1rem;border-radius:2rem;font-size:.82rem;font-weight:800;text-decoration:none">&#9654; Spotify</a>'
+    + '<a href="https://music.youtube.com/search?q='+sp+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.35rem;background:#FF0000;color:#fff;padding:.45rem 1rem;border-radius:2rem;font-size:.82rem;font-weight:800;text-decoration:none">&#127910; YouTube</a>'
+    + '<a href="https://www.last.fm/music/'+sp+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.35rem;background:#ba0000;color:#fff;padding:.45rem 1rem;border-radius:2rem;font-size:.82rem;font-weight:800;text-decoration:none">&#127908; Last.fm</a>'
     + '</div>';
 
-  updateDMBtns();
-  document.getElementById('disc-modal').style.display='';
+  discUpdBtn();
+  document.getElementById('disc-modal').style.display = '';
 }
 
-function updateDMBtns(){
-  const bw = document.getElementById('dm-btn-watch');
-  const bf = document.getElementById('dm-btn-fav');
-  if(!dmBand) return;
-  const wl = isWatch(dmBand.name);
-  const fv = isFav(dmBand.name);
-  if(bw){
-    bw.textContent = wl ? '📌 Vormerkung aufheben' : '📌 Vormerken';
-    bw.style.borderColor = wl ? '#7ec8e3' : '';
-    bw.style.color = wl ? '#7ec8e3' : '';
-    bw.style.background = wl ? 'rgba(126,200,227,.1)' : '';
+function discUpdBtn() {
+  if (!_db) return;
+  var fv = []; try { fv = JSON.parse(localStorage.getItem('woa26_favs')||'[]'); } catch(e){}
+  var wl = []; try { wl = JSON.parse(localStorage.getItem('woa26_watch')||'[]'); } catch(e){}
+  var isW = wl.indexOf(_db.name) > -1;
+  var isF = fv.indexOf(_db.name) > -1;
+  var bw = document.getElementById('disc-m-w');
+  var bf = document.getElementById('disc-m-f');
+  if (bw) { bw.textContent = isW ? '📌 Vorgemerkt (aufheben)' : '📌 Vormerken'; bw.style.background = isW ? 'rgba(126,200,227,.15)' : ''; }
+  if (bf) { bf.textContent = isF ? '★ In Favoriten' : '★ Zu Favoriten'; bf.style.borderColor = isF ? 'var(--amber)':''; bf.style.color = isF ? 'var(--amber)':''; }
+}
+
+function discTogWatch() {
+  if (!_db) return;
+  var wl = []; try { wl = JSON.parse(localStorage.getItem('woa26_watch')||'[]'); } catch(e){}
+  var idx = wl.indexOf(_db.name);
+  if (idx > -1) { wl.splice(idx,1); }
+  else {
+    wl.push(_db.name);
+    // Aus favs entfernen wenn nötig
+    var fv = []; try { fv = JSON.parse(localStorage.getItem('woa26_favs')||'[]'); } catch(e){}
+    var fi = fv.indexOf(_db.name);
+    if (fi > -1) { fv.splice(fi,1); localStorage.setItem('woa26_favs', JSON.stringify(fv)); if(typeof favs!=='undefined') favs=fv; }
   }
-  if(bf){
-    bf.textContent = fv ? '★ Aus Favoriten' : '★ Zu Favoriten';
-    bf.style.borderColor = fv ? 'var(--amber)' : '';
-    bf.style.color = fv ? 'var(--amber)' : '';
+  localStorage.setItem('woa26_watch', JSON.stringify(wl));
+  if (typeof watchlist !== 'undefined') watchlist = wl;
+  discUpdBtn();
+  discRender();
+  if (typeof renderFavs === 'function' && document.getElementById('view-favs') && document.getElementById('view-favs').classList.contains('active')) renderFavs();
+}
+
+function discTogFav() {
+  if (!_db) return;
+  var fv = []; try { fv = JSON.parse(localStorage.getItem('woa26_favs')||'[]'); } catch(e){}
+  var idx = fv.indexOf(_db.name);
+  if (idx > -1) { fv.splice(idx,1); }
+  else {
+    fv.push(_db.name);
+    // Aus watchlist entfernen
+    var wl = []; try { wl = JSON.parse(localStorage.getItem('woa26_watch')||'[]'); } catch(e){}
+    var wi = wl.indexOf(_db.name);
+    if (wi > -1) { wl.splice(wi,1); localStorage.setItem('woa26_watch', JSON.stringify(wl)); if(typeof watchlist!=='undefined') watchlist=wl; }
   }
+  localStorage.setItem('woa26_favs', JSON.stringify(fv));
+  if (typeof favs !== 'undefined') favs = fv;
+  discUpdBtn();
+  discRender();
+  if (fv.indexOf(_db.name) > -1) discClose();
+  if (typeof renderAll === 'function') renderAll();
 }
 
-function dmTogWatch(){
-  if(!dmBand) return;
-  togWatch(dmBand.name);
-  updateDMBtns();
-  buildDiscGrid();
+function discClose() {
+  document.getElementById('disc-modal').style.display = 'none';
+  _db = null;
 }
-
-function dmTogFav(){
-  if(!dmBand) return;
-  tog(dmBand.name);
-  updateDMBtns();
-  buildDiscGrid();
-  // Modal schließen wenn zu Favs hinzugefügt (Band verschwindet aus dem Grid)
-  if(isFav(dmBand.name)) closeDM();
-}
-
-function closeDM(){
-  document.getElementById('disc-modal').style.display='none';
-  dmBand = null;
-}
-
-buildAlpha(); renderLineup();
-
-
-
-// ── LIVE UPDATE ───────────────────────────────────────────────
-async function tryLiveUpdate(manual=false){
-  const statusEl=document.getElementById('live-status');
-  const btnEl=document.getElementById('btn-refresh');
-  if(!statusEl) return;
-  statusEl.textContent='⏳ Verbinde mit wacken.com…';
-  statusEl.style.color='#f49600';
-  if(btnEl) btnEl.disabled=true;
-  const TARGET='https://www.wacken.com/fileadmin/Json/bandlist-concert.json';
-  const PROXIES=[
-    u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
-    u=>'https://corsproxy.io/?'+encodeURIComponent(u),
-    u=>u
-  ];
-  let data=null;
-  for(const proxy of PROXIES){
-    try{
-      const ctrl=new AbortController();
-      const t=setTimeout(()=>ctrl.abort(),8000);
-      const res=await fetch(proxy(TARGET),{signal:ctrl.signal,headers:{'Accept':'application/json'}});
-      clearTimeout(t);
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      data=await res.json();
-      if(Array.isArray(data)&&data.length>10) break;
-      data=null;
-    }catch(e){data=null;}
-  }
-  try{
-    if(!data||!Array.isArray(data)||data.length<=10) throw new Error('Keine validen Daten');
-    const names=data.map(b=>b.artist?.title||b.title).filter(Boolean);
-    const roActive=data.some(b=>b.festival?.runningOrderActive);
-    const prevCount=parseInt(localStorage.getItem('woa26_live_count')||'0');
-    const diff=names.length-prevCount;
-    const ts=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    let msg='🟢 Live · '+names.length+' Bands · Stand: '+ts;
-    if(manual&&diff>0) msg+=' · ⚡ +'+diff+' neue Bands!';
-    if(manual&&diff===0&&prevCount>0) msg+=' · Keine Änderungen';
-    if(roActive) msg+=' · Running Order aktiv!';
-    statusEl.textContent=msg;
-    statusEl.style.color=roActive?'#f49600':'#50c878';
-    localStorage.setItem('woa26_live_ts',Date.now());
-    localStorage.setItem('woa26_live_count',names.length);
-  }catch(e){
-    const lastTs=localStorage.getItem('woa26_live_ts');
-    const lastCount=localStorage.getItem('woa26_live_count');
-    const errMsg=e?.message?' ['+e.message+']':'';
-    if(lastTs){
-      const mins=Math.round((Date.now()-parseInt(lastTs))/60000);
-      const h=Math.floor(mins/60),m=mins%60;
-      statusEl.textContent='🟡 Keine Verbindung · Zuletzt: vor '+(h>0?h+'h '+m+'min':m+'min')+' ('+lastCount+' Bands)'+errMsg;
-    }else{
-      statusEl.textContent='⚪ Keine Verbindung · Eingebettete Daten ('+BANDS.length+' Bands)'+errMsg;
-    }
-    statusEl.style.color='#9a9a9a';
-  }
-  if(btnEl) btnEl.disabled=false;
-}
-function manualUpdate(){tryLiveUpdate(true);}
-
-// ── ENTDECKEN ─────────────────────────────────────────────────
-let discModalBand=null;
-let bandOfDay=null;
-let discFilter='';
-
-function getBandOfDay(){
-  if(!BANDS||!BANDS.length) return null;
-  const d=new Date();
-  const seed=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
-  return BANDS[seed%BANDS.length];
-}
-
-function makeBadgeHtml(b){
-  let h='';
-  if(b.hl)        h+='<span class="bdg hl">Headliner</span>';
-  if(b.firstTime) h+='<span class="bdg ft">First Timer</span>';
-  if(b.badge)     h+='<span class="bdg sp">'+b.badge+'</span>';
-  if(isWatch(b.name)) h+='<span class="bdg wl">Vorgemerkt</span>';
-  return h;
-}
-
-function getSchedHtml(name){
-  const slots=(typeof SCHED!=='undefined'?SCHED:[]).filter(s=>s.name.toLowerCase()===name.toLowerCase());
-  if(!slots.length) return '<span style="color:var(--muted)">Spielzeit noch nicht bekannt</span>';
-  return slots.map(s=>'<b>'+DAYS[s.day]+'</b>&nbsp;'+m2t(s.start)+'&#8211;'+m2t(s.end)+'&nbsp;&nbsp;'+stL(normStage(s.stage))).join('<br>');
-}
-
 
 window.addEventListener('load',()=>{
   setTimeout(()=>tryLiveUpdate(false),1200);
-  buildDiscGrid();
+  discRender();
 });
 </script>
 </body>
