@@ -559,8 +559,6 @@ function downloadPDF(){
 }
 
 document.getElementById('search').addEventListener('input',e=>{query=e.target.value;renderLineup();});
-// Init discover grid on load so it's ready when tab is clicked
-setTimeout(()=>{renderDiscover();},50);
 document.getElementById('sort-sel').addEventListener('change',e=>{sortM=e.target.value;renderLineup();});
 function clearFilters(){query='';alpha='all';sortM='az';onlyHL=false;document.getElementById('search').value='';document.getElementById('sort-sel').value='az';document.getElementById('btn-hl').classList.remove('on');buildAlpha();renderLineup();}
 function renderAll(){renderLineup();const av=document.querySelector('.view.active')?.id;if(av==='view-favs')renderFavs();if(av==='view-tt')renderTT();}
@@ -681,7 +679,7 @@ function renderDiscoverGrid(){
   if(!grid||!BANDS||!BANDS.length) return;
 
   let pool=BANDS.filter(b=>!isFav(b.name)&&!isWatch(b.name));
-  if(discFilter) pool=pool.filter(b=>b.name.toLowerCase().includes(discFilter.toLowerCase()));
+  if(typeof discFilter!=='undefined'&&discFilter) pool=pool.filter(b=>b.name.toLowerCase().includes(discFilter.toLowerCase()));
   pool.sort((a,b)=>a.name.localeCompare(b.name,'de'));
 
   if(countEl) countEl.textContent=BANDS.filter(b=>!isFav(b.name)&&!isWatch(b.name)).length;
@@ -787,6 +785,8 @@ function closeDiscoverModal(){
 
 window.addEventListener('load',()=>{
   setTimeout(()=>tryLiveUpdate(false),1200);
+  // Entdecken-Grid beim Start befüllen
+  renderDiscover();
 });
 </script>
 </body>
