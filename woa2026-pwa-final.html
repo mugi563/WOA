@@ -143,6 +143,21 @@ h2.print-title{display:none}
   .nav{gap:.5rem}
   .tabs{flex-wrap:wrap}
 }
+
+/* Vorgemerkt badge */
+.bdg.wl{background:transparent;color:#7ec8e3;border:1px solid #7ec8e3;font-style:normal}
+/* Entdecken grid */
+.disc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1px;background:var(--border2)}
+.disc-card{background:var(--s1);padding:.8rem 1rem;cursor:pointer;transition:background .15s;display:flex;flex-direction:column;gap:.35rem}
+.disc-card:hover{background:var(--s2)}
+.disc-card.hl{border-left:3px solid var(--red)}
+.disc-card-name{font-size:.95rem;font-weight:700;color:#fff;line-height:1.3}
+/* Vorgemerkt section in Favs */
+.watch-item{background:var(--s1);padding:.65rem .9rem;display:flex;align-items:center;gap:.75rem;border-left:3px solid #7ec8e3}
+.watch-item .fn{font-weight:600;color:#fff}
+.watch-item .fm{font-size:.78rem;color:var(--muted);margin-top:.15rem}
+/* Modal embed */
+.sp-embed{width:100%;border:none;border-radius:4px;display:block}
 </style>
 
 <script>
@@ -268,62 +283,48 @@ self.addEventListener('fetch', e => {
   </div>
 
 <div class="view" id="view-discover">
+  <!-- Stats -->
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border2);margin-bottom:1.25rem" id="discover-stats-grid"></div>
 
+  <!-- Band des Tages -->
   <div style="margin-bottom:1.25rem">
     <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.6rem">&#127922; Band des Tages</div>
-    <div id="band-of-day" style="background:var(--s1);border:1px solid var(--border);padding:1.1rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:1rem;border-left:3px solid var(--red)" onclick="showBandDetail(bandOfDay)">
-      <div style="font-size:2rem;flex-shrink:0">&#9835;</div>
+    <div id="band-of-day" style="background:var(--s1);border:1px solid var(--border);padding:1rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:1rem;border-left:3px solid var(--red)" onclick="openDiscoverModal(bandOfDay)">
+      <div style="font-size:1.8rem;flex-shrink:0">&#9835;</div>
       <div style="flex:1;min-width:0">
-        <div id="bod-name" style="font-size:1.15rem;font-weight:800;color:#fff;line-height:1.3"></div>
+        <div id="bod-name" style="font-size:1.1rem;font-weight:800;color:#fff"></div>
         <div id="bod-badges" style="margin-top:.3rem;display:flex;gap:.35rem;flex-wrap:wrap"></div>
-        <div style="font-size:.78rem;color:var(--muted);margin-top:.4rem">Klicke für mehr Infos &middot; Wechselt täglich</div>
-      </div>
-      <div id="bod-fav" style="font-size:1.4rem;flex-shrink:0"></div>
-    </div>
-  </div>
-
-  <div style="margin-bottom:1.25rem">
-    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.6rem">&#128256; Zufällig entdecken</div>
-    <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem">
-      <button class="btn" onclick="rollRandom('all')">&#127922; Alle Bands</button>
-      <button class="btn" onclick="rollRandom('new')">&#127381; Nur First Timer</button>
-      <button class="btn" onclick="rollRandom('hl')">&#127775; Nur Headliner</button>
-      <button class="btn" onclick="rollRandom('unfaved')">&#9734; Noch nicht in Favs</button>
-    </div>
-    <div id="random-card" style="display:none;background:var(--s1);border:1px solid var(--border);padding:1.1rem 1.25rem;cursor:pointer;border-left:3px solid #e6a817" onclick="showBandDetail(currentRandom)">
-      <div style="display:flex;align-items:center;gap:1rem">
-        <div style="font-size:2rem;flex-shrink:0" id="random-icon">&#127922;</div>
-        <div style="flex:1;min-width:0">
-          <div id="random-name" style="font-size:1.1rem;font-weight:800;color:#fff"></div>
-          <div id="random-badges" style="margin-top:.3rem;display:flex;gap:.35rem;flex-wrap:wrap"></div>
-          <div style="font-size:.78rem;color:var(--muted);margin-top:.4rem">Klicke für mehr Infos</div>
-        </div>
-        <button class="btn" style="flex-shrink:0" id="random-fav-btn" onclick="event.stopPropagation();tog(currentRandom.name);renderFavs();renderDiscover()">&#9734;</button>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.35rem">Klicke für Songs &amp; Details · Wechselt täglich</div>
       </div>
     </div>
   </div>
 
-  <div style="margin-bottom:1.25rem">
-    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.6rem">&#9997; Noch nicht in deinen Favs</div>
-    <div style="font-size:.85rem;color:var(--muted);margin-bottom:.6rem" id="undiscovered-info"></div>
-    <div id="undiscovered-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:1px;background:var(--border2)"></div>
+  <!-- Alle nicht-Favoriten Bands -->
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;flex-wrap:wrap;gap:.5rem">
+      <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">&#127761; Noch nicht entdeckt (<span id="disc-count">0</span>)</div>
+      <input id="disc-search" type="search" placeholder="Band suchen…" oninput="filterDiscover()" style="background:var(--s2);border:1px solid var(--border);color:#fff;padding:.35rem .7rem;font-size:.82rem;width:180px">
+    </div>
+    <div class="disc-grid" id="disc-grid"></div>
+    <div id="disc-empty" style="display:none;padding:1.5rem;text-align:center;color:var(--muted);font-size:.9rem">Alle Bands sind bereits in deinen Favoriten oder Vorgemerkten! 🎉</div>
   </div>
 
-  <div id="band-modal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);padding:1rem;overflow-y:auto" onclick="if(event.target===this)closeBandModal()">
-    <div style="max-width:520px;margin:2rem auto;background:var(--s1);border:1px solid var(--border);">
-      <div style="background:var(--red);padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-weight:800;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:#fff">Band Info</span>
-        <button onclick="closeBandModal()" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">&#10005;</button>
+  <!-- Band Modal -->
+  <div id="disc-modal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);padding:1rem;overflow-y:auto" onclick="if(event.target===this)closeDiscoverModal()">
+    <div style="max-width:560px;margin:1.5rem auto;background:var(--s1);border:1px solid var(--border)">
+      <div style="background:var(--red);padding:.7rem 1rem;display:flex;justify-content:space-between;align-items:center">
+        <span id="modal-title" style="font-weight:800;font-size:.9rem;text-transform:uppercase;letter-spacing:.06em;color:#fff"></span>
+        <button onclick="closeDiscoverModal()" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">&#10005;</button>
       </div>
-      <div style="padding:1.25rem">
-        <div id="modal-name" style="font-size:1.4rem;font-weight:800;color:#fff;margin-bottom:.5rem"></div>
-        <div id="modal-badges" style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:1rem"></div>
-        <div id="modal-schedule" style="background:var(--s2);padding:.65rem .9rem;margin-bottom:1rem;font-size:.85rem;line-height:1.7;border-left:3px solid var(--red)"></div>
-        <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-          <button class="btn" id="modal-fav-btn" onclick="tog(modalBand.name);renderFavs();renderDiscover();updateModalFavBtn()">&#9733; Favorit</button>
-          <button class="btn" onclick="window.open('https://www.wacken.com/en/bands/band-details/#/bandfilter/'+(modalBand.slug||''),'_blank')">&#127760; Wacken Profil</button>
-          <button class="btn" onclick="window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(modalBand.name+' band'),'_blank')">&#127910; YouTube</button>
+      <div style="padding:1.1rem 1.25rem">
+        <div id="modal-badges-d" style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.9rem"></div>
+        <div id="modal-sched-d" style="background:var(--s2);padding:.6rem .9rem;font-size:.84rem;line-height:1.7;border-left:3px solid var(--red);margin-bottom:1rem"></div>
+        <!-- Spotify embed -->
+        <div id="modal-embed" style="margin-bottom:1rem"></div>
+        <div style="display:flex;gap:.65rem;flex-wrap:wrap">
+          <button class="btn" id="modal-fav-d" onclick="togModalFav()">&#9733; Favorit</button>
+          <button class="btn" id="modal-watch-d" onclick="togModalWatch()">&#128204; Vormerken</button>
+          <button class="btn" onclick="window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(discModalBand.name+' band official'),'_blank')">&#127910; YouTube</button>
         </div>
       </div>
     </div>
@@ -353,11 +354,15 @@ const STAGE_ALIAS = {main:"faster", nacken:"wackinger", crusher:"headbangers", s
 const normStage = s => STAGE_ALIAS[s] || s;
 
 let favs = JSON.parse(localStorage.getItem('woa26_favs')||'[]');
+let watchlist = JSON.parse(localStorage.getItem('woa26_watch')||'[]');
 let alpha='all', query='', sortM='az', onlyHL=false;
 
 const save  = () => localStorage.setItem('woa26_favs', JSON.stringify(favs));
 const isFav = n  => favs.includes(n);
 const tog   = n  => { if(isFav(n)) favs=favs.filter(f=>f!==n); else favs.push(n); save(); renderAll(); };
+const saveWatch  = () => localStorage.setItem('woa26_watch', JSON.stringify(watchlist));
+const isWatch    = n  => watchlist.includes(n);
+const togWatch   = n  => { if(isWatch(n)) watchlist=watchlist.filter(w=>w!==n); else { watchlist.push(n); if(isFav(n)){favs=favs.filter(f=>f!==n);save();} } saveWatch(); renderFavs(); renderDiscover(); };
 const m2t   = m  => String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
 const stL   = id => STAGES.find(s=>s.id===normStage(id))?.label||id;
 const stC   = id => STAGES.find(s=>s.id===id)?.color||'#333';
@@ -415,23 +420,52 @@ function renderLineup(){
 }
 
 function renderFavs(){
-  document.getElementById('fav-count').textContent=favs.length;
+  const total=favs.length+watchlist.length;
+  document.getElementById('fav-count').textContent=total;
   const info=document.getElementById('fav-info');
   const list=document.getElementById('fav-list');
-  if(!favs.length){info.innerHTML='Noch keine Favoriten. Klicke im <b>Line-Up</b> auf ☆ um Bands zu markieren.';list.innerHTML='';return;}
+
+  // ── Vorgemerkt section ──
+  let watchHtml='';
+  if(watchlist.length){
+    const wBands=BANDS.filter(b=>watchlist.includes(b.name)).sort((a,b)=>a.name.localeCompare(b.name,'de'));
+    watchHtml='<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#7ec8e3;margin:.9rem 0 .5rem">&#128204; Vorgemerkt ('+watchlist.length+')</div>'
+      +wBands.map(b=>{
+        const sc=SCHED.find(s=>s.name.toLowerCase()===b.name.toLowerCase());
+        const si=sc?DAYS[sc.day]+' ·&nbsp;'+m2t(sc.start)+'–'+m2t(sc.end)+' ·&nbsp;'+stL(sc.stage):'Spielzeit noch nicht bekannt';
+        const en=escN(b.name);
+        const addBtn=sc?'<button class="btn" style="font-size:.72rem;padding:.25rem .6rem" onclick="event.stopPropagation();tog(\''+en+'\');saveWatch();watchlist=watchlist.filter(w=>w!==\''+en+'\');saveWatch();renderFavs()" title="Zu Favoriten hinzufügen">&#9733; Zu Favs</button>':'';
+        return '<div class="watch-item">'
+          +'<div style="font-size:1rem;flex-shrink:0">&#128204;</div>'
+          +'<div style="flex:1;min-width:0"><div class="fn">'+b.name+' <span class="bdg wl">Vorgemerkt</span></div><div class="fm">'+si+'</div></div>'
+          +addBtn
+          +'<button class="rm" onclick="event.stopPropagation();togWatch(\''+en+'\')">&#10005;</button>'
+        +'</div>';
+      }).join('');
+  }
+
+  // ── Favoriten section ──
+  if(!favs.length && !watchlist.length){
+    info.innerHTML='Noch keine Favoriten. Klicke im <b>Line-Up</b> auf ☆ oder im <b>Entdecken</b> auf &#128204; Vormerken.';
+    list.innerHTML='';return;
+  }
   const myBands=BANDS.filter(b=>favs.includes(b.name)).sort((a,b)=>(b.hl?1:0)-(a.hl?1:0)||a.name.localeCompare(b.name,'de'));
   const withSc=myBands.filter(b=>SCHED.some(s=>s.name.toLowerCase()===b.name.toLowerCase()));
-  info.innerHTML='<b>'+favs.length+'</b> Band'+(favs.length!==1?'s':'')+' gespeichert &nbsp;·&nbsp; <b>'+withSc.length+'</b> mit bekanntem Spielplan &nbsp;·&nbsp; Klicke <b>Zeitplan</b> für die Übersicht.';
-  list.innerHTML=myBands.map(b=>{
-    const sc=SCHED.find(s=>s.name.toLowerCase()===b.name.toLowerCase());
-    const si=sc?DAYS[sc.day]+' &nbsp;·&nbsp; '+m2t(sc.start)+'–'+m2t(sc.end)+' &nbsp;·&nbsp; '+stL(sc.stage):'Spielzeit noch nicht bekannt';
-    const en=escN(b.name);
-    return '<div class="fav-item'+(b.hl?' hl':'')+'">'
-      +'<div style="font-size:1.1rem;flex-shrink:0">'+(b.hl?'⚡':'▶')+'</div>'
-      +'<div><div class="fn">'+(b.hl?'<span style="color:#ff4444">'+b.name+'</span>':b.name)+'</div><div class="fm">'+si+'</div></div>'
-      +'<button class="rm" onclick="event.stopPropagation();tog(\''+en+'\')">Entfernen</button>'
-    +'</div>';
-  }).join('');
+  info.innerHTML='<b>'+favs.length+'</b> Favorit'+(favs.length!==1?'en':'')
+    +(watchlist.length?' &nbsp;·&nbsp; <b>'+watchlist.length+'</b> <span style="color:#7ec8e3">Vorgemerkt</span>':'')
+    +(withSc.length?' &nbsp;·&nbsp; <b>'+withSc.length+'</b> mit Spielplan':'');
+  const favsHtml=myBands.length?'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:.9rem 0 .5rem">&#9733; Favoriten ('+myBands.length+')</div>'
+    +myBands.map(b=>{
+      const sc=SCHED.find(s=>s.name.toLowerCase()===b.name.toLowerCase());
+      const si=sc?DAYS[sc.day]+' ·&nbsp;'+m2t(sc.start)+'–'+m2t(sc.end)+' ·&nbsp;'+stL(sc.stage):'Spielzeit noch nicht bekannt';
+      const en=escN(b.name);
+      return '<div class="fav-item'+(b.hl?' hl':'')+'">'
+        +'<div style="font-size:1.1rem;flex-shrink:0">'+(b.hl?'⚡':'▶')+'</div>'
+        +'<div style="flex:1;min-width:0"><div class="fn">'+(b.hl?'<span style="color:#ff4444">'+b.name+'</span>':b.name)+'</div><div class="fm">'+si+'</div></div>'
+        +'<button class="rm" onclick="event.stopPropagation();tog(\''+en+'\')">Entfernen</button>'
+      +'</div>';
+    }).join(''):'';
+  list.innerHTML=watchHtml+favsHtml;
 }
 
 function renderTT(){
@@ -513,84 +547,76 @@ buildAlpha(); renderLineup();
 
 <!-- SW moved to inline blob -->
 <script>
-// ── LIVE UPDATE ──────────────────────────────────────────────────────────────
+// ── LIVE UPDATE ───────────────────────────────────────────────────────────────
 async function tryLiveUpdate(manual=false){
-  const statusEl = document.getElementById('live-status');
-  const btnEl    = document.getElementById('btn-refresh');
+  const statusEl=document.getElementById('live-status');
+  const btnEl=document.getElementById('btn-refresh');
   if(!statusEl) return;
-  statusEl.textContent = '⏳ Verbinde mit wacken.com…';
-  statusEl.style.color = '#f49600';
-  if(btnEl) btnEl.disabled = true;
-
-  const TARGET = 'https://www.wacken.com/fileadmin/Json/bandlist-concert.json';
-  const PROXIES = [
-    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-    u => 'https://corsproxy.io/?' + encodeURIComponent(u),
-    u => u   // direct as last resort
+  statusEl.textContent='⏳ Verbinde mit wacken.com…';
+  statusEl.style.color='#f49600';
+  if(btnEl) btnEl.disabled=true;
+  const TARGET='https://www.wacken.com/fileadmin/Json/bandlist-concert.json';
+  const PROXIES=[
+    u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
+    u=>'https://corsproxy.io/?'+encodeURIComponent(u),
+    u=>u
   ];
-
-  let data = null;
+  let data=null;
   for(const proxy of PROXIES){
     try{
-      const controller = new AbortController();
-      const timer = setTimeout(()=>controller.abort(), 8000);
-      const res = await fetch(proxy(TARGET), {
-        signal: controller.signal,
-        headers: {'Accept':'application/json'}
-      });
-      clearTimeout(timer);
+      const ctrl=new AbortController();
+      const t=setTimeout(()=>ctrl.abort(),8000);
+      const res=await fetch(proxy(TARGET),{signal:ctrl.signal,headers:{'Accept':'application/json'}});
+      clearTimeout(t);
       if(!res.ok) throw new Error('HTTP '+res.status);
-      data = await res.json();
-      if(Array.isArray(data) && data.length > 10) break;
-      data = null;
-    } catch(e){ data = null; }
+      data=await res.json();
+      if(Array.isArray(data)&&data.length>10) break;
+      data=null;
+    }catch(e){data=null;}
   }
-
   try{
-    if(!data || !Array.isArray(data) || data.length <= 10) throw new Error('Keine validen Daten');
-    const names    = data.map(b=>b.artist?.title||b.title).filter(Boolean);
-    const roActive = data.some(b=>b.festival?.runningOrderActive);
-    const prevCount= parseInt(localStorage.getItem('woa26_live_count')||'0');
-    const diff     = names.length - prevCount;
-    const ts       = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    let msg = '🟢 Live · '+names.length+' Bands · Stand: '+ts;
-    if(manual && diff>0)  msg += ' · ⚡ +'+diff+' neue Bands!';
-    if(manual && diff===0 && prevCount>0) msg += ' · Keine Änderungen';
-    if(roActive) msg += ' · Running Order aktiv!';
-    statusEl.textContent = msg;
-    statusEl.style.color = roActive ? '#f49600' : '#50c878';
-    localStorage.setItem('woa26_live_ts', Date.now());
-    localStorage.setItem('woa26_live_count', names.length);
-  } catch(e){
-    const lastTs    = localStorage.getItem('woa26_live_ts');
-    const lastCount = localStorage.getItem('woa26_live_count');
-    const errMsg    = e?.message ? ' ['+e.message+']' : '';
+    if(!data||!Array.isArray(data)||data.length<=10) throw new Error('Keine validen Daten');
+    const names=data.map(b=>b.artist?.title||b.title).filter(Boolean);
+    const roActive=data.some(b=>b.festival?.runningOrderActive);
+    const prevCount=parseInt(localStorage.getItem('woa26_live_count')||'0');
+    const diff=names.length-prevCount;
+    const ts=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    let msg='🟢 Live · '+names.length+' Bands · Stand: '+ts;
+    if(manual&&diff>0) msg+=' · ⚡ +'+diff+' neue Bands!';
+    if(manual&&diff===0&&prevCount>0) msg+=' · Keine Änderungen';
+    if(roActive) msg+=' · Running Order aktiv!';
+    statusEl.textContent=msg;
+    statusEl.style.color=roActive?'#f49600':'#50c878';
+    localStorage.setItem('woa26_live_ts',Date.now());
+    localStorage.setItem('woa26_live_count',names.length);
+  }catch(e){
+    const lastTs=localStorage.getItem('woa26_live_ts');
+    const lastCount=localStorage.getItem('woa26_live_count');
+    const errMsg=e?.message?' ['+e.message+']':'';
     if(lastTs){
-      const mins = Math.round((Date.now()-parseInt(lastTs))/60000);
-      const h=Math.floor(mins/60), m=mins%60;
-      const ago = h>0 ? h+'h '+m+'min' : m+'min';
-      statusEl.textContent = '🟡 Keine Verbindung · Zuletzt: vor '+ago+' ('+lastCount+' Bands)'+errMsg;
-    } else {
-      statusEl.textContent = '⚪ Keine Verbindung · Eingebettete Daten ('+BANDS.length+' Bands)'+errMsg;
+      const mins=Math.round((Date.now()-parseInt(lastTs))/60000);
+      const h=Math.floor(mins/60),m=mins%60;
+      statusEl.textContent='🟡 Keine Verbindung · Zuletzt: vor '+(h>0?h+'h '+m+'min':m+'min')+' ('+lastCount+' Bands)'+errMsg;
+    }else{
+      statusEl.textContent='⚪ Keine Verbindung · Eingebettete Daten ('+BANDS.length+' Bands)'+errMsg;
     }
-    statusEl.style.color = '#9a9a9a';
-    console.warn('Live update failed:', e);
+    statusEl.style.color='#9a9a9a';
+    console.warn('Live update failed:',e);
   }
-  if(btnEl) btnEl.disabled = false;
+  if(btnEl) btnEl.disabled=false;
 }
-
-function manualUpdate(){ tryLiveUpdate(true); }
+function manualUpdate(){tryLiveUpdate(true);}
 
 // ── ENTDECKEN ─────────────────────────────────────────────────────────────────
-let currentRandom = null;
-let modalBand     = null;
-let bandOfDay     = null;   // lazy-init on first renderDiscover()
+let discModalBand=null;
+let bandOfDay=null;
+let discFilter='';
 
 function getBandOfDay(){
-  if(!BANDS || !BANDS.length) return null;
-  const d    = new Date();
-  const seed = d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
-  return BANDS[seed % BANDS.length];
+  if(!BANDS||!BANDS.length) return null;
+  const d=new Date();
+  const seed=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+  return BANDS[seed%BANDS.length];
 }
 
 function makeBadgeHtml(b){
@@ -598,112 +624,124 @@ function makeBadgeHtml(b){
   if(b.hl)        h+='<span class="bdg hl">Headliner</span>';
   if(b.firstTime) h+='<span class="bdg ft">First Timer</span>';
   if(b.badge)     h+='<span class="bdg sp">'+b.badge+'</span>';
+  if(isWatch(b.name)) h+='<span class="bdg wl">Vorgemerkt</span>';
   return h;
 }
 
-function getScheduleHtml(name){
-  const slots = (typeof SCHED!=='undefined' ? SCHED : [])
-    .filter(s=>s.name.toLowerCase()===name.toLowerCase());
+function getSchedHtml(name){
+  const slots=(typeof SCHED!=='undefined'?SCHED:[]).filter(s=>s.name.toLowerCase()===name.toLowerCase());
   if(!slots.length) return '<span style="color:var(--muted)">Spielzeit noch nicht bekannt</span>';
   return slots.map(s=>'<b>'+DAYS[s.day]+'</b>&nbsp;'+m2t(s.start)+'&#8211;'+m2t(s.end)+'&nbsp;&nbsp;'+stL(normStage(s.stage))).join('<br>');
 }
 
+function getSpotifyEmbed(bandName){
+  // Spotify iframe search embed — no API key needed
+  const q=encodeURIComponent(bandName);
+  return '<iframe class="sp-embed" style="height:152px" '
+    +'src="https://open.spotify.com/embed/search/'+q+'" '
+    +'allow="autoplay;clipboard-write;encrypted-media;fullscreen;picture-in-picture" '
+    +'loading="lazy"></iframe>';
+}
+
+function filterDiscover(){
+  discFilter=document.getElementById('disc-search')?.value||'';
+  renderDiscoverGrid();
+}
+
+function renderDiscoverGrid(){
+  const grid=document.getElementById('disc-grid');
+  const empty=document.getElementById('disc-empty');
+  const countEl=document.getElementById('disc-count');
+  if(!grid) return;
+  // All bands not in favs AND not in watchlist
+  let pool=BANDS.filter(b=>!isFav(b.name)&&!isWatch(b.name));
+  if(discFilter) pool=pool.filter(b=>b.name.toLowerCase().includes(discFilter.toLowerCase()));
+  pool.sort((a,b)=>a.name.localeCompare(b.name,'de'));
+  if(countEl) countEl.textContent=BANDS.filter(b=>!isFav(b.name)&&!isWatch(b.name)).length;
+  if(!pool.length){
+    grid.innerHTML='';
+    if(empty) empty.style.display='';
+    return;
+  }
+  if(empty) empty.style.display='none';
+  grid.innerHTML=pool.map(b=>{
+    const en=escN(b.name);
+    return '<div class="disc-card'+(b.hl?' hl':'')+'" onclick="openDiscoverModal(BANDS.find(x=>x.name===\''+en+'\'))">'
+      +'<div class="disc-card-name">'+b.name+'</div>'
+      +'<div class="bdgs">'+makeBadgeHtml(b)+'</div>'
+      +'</div>';
+  }).join('');
+}
+
 function renderDiscover(){
-  // lazy-init band of day
-  if(!bandOfDay) bandOfDay = getBandOfDay();
-  if(!bandOfDay || !BANDS.length) return;
+  if(!bandOfDay) bandOfDay=getBandOfDay();
+  if(!BANDS||!BANDS.length) return;
 
-  const total    = BANDS.length;
-  const hlCount  = BANDS.filter(b=>b.hl).length;
-  const ftCount  = BANDS.filter(b=>b.firstTime).length;
-  const spCount  = BANDS.filter(b=>b.badge).length;
-  const favCount = favs.length;
-  const favPct   = total ? Math.round(favCount/total*100) : 0;
-  const withSched= (typeof SCHED!=='undefined'&&SCHED.length)
-    ? [...new Set(SCHED.map(s=>s.name.toLowerCase()))].length : 0;
-
+  // Stats
+  const total=BANDS.length;
   document.getElementById('discover-stats-grid').innerHTML=[
-    ['&#127775;','Headliner',hlCount],
-    ['&#127381;','First Timer',ftCount],
-    ['&#11088;','Special Acts',spCount],
-    ['&#9733;','Deine Favs',favCount+' ('+favPct+'%)'],
-    ['&#9776;','Mit Spielplan',withSched||'bald'],
+    ['&#127775;','Headliner',BANDS.filter(b=>b.hl).length],
+    ['&#127381;','First Timer',BANDS.filter(b=>b.firstTime).length],
+    ['&#11088;','Special Acts',BANDS.filter(b=>b.badge).length],
+    ['&#9733;','Favoriten',favs.length],
+    ['&#128204;','Vorgemerkt',watchlist.length],
     ['&#127928;','Bands gesamt',total],
   ].map(([icon,label,val])=>
-    '<div style="background:var(--s1);padding:.85rem .5rem;text-align:center">'+
-    '<div style="font-size:1.3rem">'+icon+'</div>'+
-    '<div style="font-size:1.25rem;font-weight:800;color:#fff;line-height:1.2">'+val+'</div>'+
-    '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:.2rem">'+label+'</div>'+
+    '<div style="background:var(--s1);padding:.8rem .4rem;text-align:center">'+
+    '<div style="font-size:1.25rem">'+icon+'</div>'+
+    '<div style="font-size:1.2rem;font-weight:800;color:#fff;line-height:1.2">'+val+'</div>'+
+    '<div style="font-size:.67rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:.15rem">'+label+'</div>'+
     '</div>'
   ).join('');
 
   // Band des Tages
-  document.getElementById('bod-name').textContent  = bandOfDay.name;
-  document.getElementById('bod-badges').innerHTML  = makeBadgeHtml(bandOfDay);
-  document.getElementById('bod-fav').textContent   = isFav(bandOfDay.name) ? '⭐' : '☆';
-
-  // Noch nicht in Favs
-  const unfaved  = BANDS.filter(b=>!isFav(b.name));
-  const uCount   = unfaved.length;
-  document.getElementById('undiscovered-info').textContent =
-    uCount+' von '+total+' Bands noch nicht in deinen Favoriten';
-  const sample   = [...unfaved].sort(()=>Math.random()-.5).slice(0,24);
-  document.getElementById('undiscovered-grid').innerHTML = sample.map(b=>{
-    const en = escN(b.name);
-    return '<div class="bcard'+(b.hl?' hl':'')+'" onclick="tog(\''+en+'\');renderFavs();renderDiscover()" title="Als Favorit markieren">'+
-      '<span class="star">'+(isFav(b.name)?'⭐':'☆')+'</span>'+
-      '<div class="binfo"><div class="bname">'+b.name+'</div>'+
-      '<div class="bdgs">'+makeBadgeHtml(b)+'</div></div></div>';
-  }).join('');
-
-  // Update random-fav-btn if card visible
-  if(currentRandom){
-    const rfb = document.getElementById('random-fav-btn');
-    if(rfb) rfb.textContent = isFav(currentRandom.name) ? '⭐ Entfernen' : '☆ Favorit';
+  if(bandOfDay){
+    document.getElementById('bod-name').textContent=bandOfDay.name;
+    document.getElementById('bod-badges').innerHTML=makeBadgeHtml(bandOfDay);
   }
+
+  renderDiscoverGrid();
 }
 
-function rollRandom(mode){
-  let pool = [...BANDS];
-  if(mode==='new')     pool = pool.filter(b=>b.firstTime);
-  else if(mode==='hl') pool = pool.filter(b=>b.hl);
-  else if(mode==='unfaved') pool = pool.filter(b=>!isFav(b.name));
-  if(!pool.length){ alert('Keine Bands in dieser Kategorie!'); return; }
-  currentRandom = pool[Math.floor(Math.random()*pool.length)];
-  const icons = {all:'🎲',new:'🆕',hl:'🌟',unfaved:'⭐'};
-  document.getElementById('random-icon').textContent   = icons[mode]||'🎲';
-  document.getElementById('random-name').textContent   = currentRandom.name;
-  document.getElementById('random-badges').innerHTML   = makeBadgeHtml(currentRandom);
-  const rfb = document.getElementById('random-fav-btn');
-  rfb.textContent = isFav(currentRandom.name) ? '⭐ Entfernen' : '☆ Favorit';
-  document.getElementById('random-card').style.display = '';
-}
-
-function showBandDetail(b){
+function openDiscoverModal(b){
   if(!b) return;
-  modalBand = b;
-  document.getElementById('modal-name').textContent  = b.name;
-  document.getElementById('modal-badges').innerHTML  = makeBadgeHtml(b);
-  document.getElementById('modal-schedule').innerHTML= getScheduleHtml(b.name);
-  updateModalFavBtn();
-  document.getElementById('band-modal').style.display='';
+  discModalBand=b;
+  document.getElementById('modal-title').textContent=b.name;
+  document.getElementById('modal-badges-d').innerHTML=makeBadgeHtml(b);
+  document.getElementById('modal-sched-d').innerHTML=getSchedHtml(b.name);
+  document.getElementById('modal-embed').innerHTML=getSpotifyEmbed(b.name);
+  updateDiscModalBtns();
+  document.getElementById('disc-modal').style.display='';
 }
 
-function updateModalFavBtn(){
-  const btn = document.getElementById('modal-fav-btn');
-  if(btn && modalBand)
-    btn.innerHTML = isFav(modalBand.name) ? '⭐ Aus Favs entfernen' : '☆ Zu Favs hinzufügen';
+function updateDiscModalBtns(){
+  const fb=document.getElementById('modal-fav-d');
+  const wb=document.getElementById('modal-watch-d');
+  if(fb) fb.innerHTML=isFav(discModalBand.name)?'⭐ Aus Favs entfernen':'☆ Zu Favoriten';
+  if(wb) wb.innerHTML=isWatch(discModalBand.name)?'📌 Vormerken aufheben':'📌 Vormerken';
 }
 
-function closeBandModal(){
-  document.getElementById('band-modal').style.display='none';
-  renderDiscover();
+function togModalFav(){
+  tog(discModalBand.name);
+  updateDiscModalBtns();
+  renderDiscoverGrid();
+}
+
+function togModalWatch(){
+  togWatch(discModalBand.name);
+  updateDiscModalBtns();
+  renderDiscoverGrid();
+}
+
+function closeDiscoverModal(){
+  document.getElementById('disc-modal').style.display='none';
+  // remove embed to stop playback
+  document.getElementById('modal-embed').innerHTML='';
 }
 // ── END ENTDECKEN ─────────────────────────────────────────────
 
-// Run on load
-window.addEventListener('load', ()=>{
-  setTimeout(()=>tryLiveUpdate(false), 1200);
+window.addEventListener('load',()=>{
+  setTimeout(()=>tryLiveUpdate(false),1200);
 });
 </script>
 </body>
